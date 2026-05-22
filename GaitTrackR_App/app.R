@@ -14,7 +14,6 @@ library(ggprism)
 library(scales)
 library(ggpattern)
 
-# In app.R, after library() calls:
 source("image_module_ui.R")
 source("image_module_server.R")
 
