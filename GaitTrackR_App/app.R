@@ -137,27 +137,35 @@ assign_steps <- function(df_side, max_gap_cm = 2){
   F <- df_side %>% filter(segment=="Front") %>% arrange(x_along_cm)
   H <- df_side %>% filter(segment=="Hind")  %>% arrange(x_along_cm)
   nF <- nrow(F); nH <- nrow(H)
-  if(nF==0 && nH==0) return(tibble(dot_id=integer(), true_step_id=integer()))
-  
+  if(nF==0 && nH==0) return(tibble(dot_id=integer(), true_step_id=integer(), segment=character()))
+
   if(nF>0 && nH>0 && nF==nH){
     return(bind_rows(
-      F %>% mutate(true_step_id=row_number()) %>% select(dot_id,true_step_id),
-      H %>% mutate(true_step_id=row_number()) %>% select(dot_id,true_step_id)
+      F %>% mutate(true_step_id=row_number()) %>% select(dot_id, true_step_id, segment),
+      H %>% mutate(true_step_id=row_number()) %>% select(dot_id, true_step_id, segment)
     ))
   }
-  
+
   i <- 1; j <- 1; step <- 1; out <- list()
   while(i<=nF || j<=nH){
     fx <- if(i<=nF) F$x_along_cm[i] else Inf
     hx <- if(j<=nH) H$x_along_cm[j] else Inf
     if(is.finite(fx) && is.finite(hx) && abs(fx-hx) <= max_gap_cm){
-      out[[length(out)+1]] <- tibble(dot_id=c(F$dot_id[i], H$dot_id[j]), true_step_id=step)
+      out[[length(out)+1]] <- tibble(
+        dot_id       = c(F$dot_id[i], H$dot_id[j]),
+        true_step_id = step,
+        segment      = c("Front","Hind")
+      )
       i <- i+1; j <- j+1
     } else if(fx < hx){
-      if(is.finite(fx)) out[[length(out)+1]] <- tibble(dot_id=F$dot_id[i], true_step_id=step)
+      if(is.finite(fx)) out[[length(out)+1]] <- tibble(
+        dot_id=F$dot_id[i], true_step_id=step, segment="Front"
+      )
       i <- i+1
     } else {
-      if(is.finite(hx)) out[[length(out)+1]] <- tibble(dot_id=H$dot_id[j], true_step_id=step)
+      if(is.finite(hx)) out[[length(out)+1]] <- tibble(
+        dot_id=H$dot_id[j], true_step_id=step, segment="Hind"
+      )
       j <- j+1
     }
     step <- step+1
@@ -509,7 +517,8 @@ server <- function(input, output, session){
       group_modify(~ assign_steps(.x, max_gap_cm = input$max_gap)) %>%
       ungroup()
     
-    out %>% left_join(ts, by=c("mouse_id","image_id","side","dot_id"))
+    # was: out %>% left_join(ts, by=c("mouse_id","image_id","side","dot_id"))
+    out %>% left_join(ts, by=c("mouse_id","image_id","side","segment","dot_id"))
   })
   
   features_mouse <- reactive({
@@ -717,7 +726,15 @@ server <- function(input, output, session){
       )
 
     # meta (includes mouse_length_cm if provided)
-    meta <- df %>% distinct(mouse_id, genotype, treatment, mouse_length_cm)
+    # was: meta <- df %>% distinct(mouse_id, genotype, treatment, mouse_length_cm)
+    meta <- df %>%
+      group_by(mouse_id) %>%
+      summarise(
+    	genotype        = first(genotype),
+    	treatment       = first(treatment),
+    	mouse_length_cm = suppressWarnings(as.numeric(first(mouse_length_cm))),
+    	.groups         = "drop"
+      )
 
     # asymmetry indices from per-paw mean step lengths
     asym_from_paws <- function(L, R) {
