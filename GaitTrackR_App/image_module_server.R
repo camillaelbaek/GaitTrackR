@@ -397,16 +397,21 @@ imageAnnotationServer <- function(input, output, session) {
   # ---- Export status ----
   output$img_export_status <- renderUI({
     ann   <- all_annotations()
-    n_pts <- sum(sapply(ann, function(x) if (!is.null(x)) nrow(x) else 0))
-    n_ann <- sum(sapply(ann, function(x) !is.null(x) && nrow(x) > 0))
-    n_set <- sum(sapply(names(all_images_data()), function(nm) !is.null(ppcm_store()[[nm]])))
+    imgs  <- all_images_data()
+
+    n_pts <- sum(vapply(ann,  function(x) if (!is.null(x)) nrow(x) else 0L, integer(1)))
+    n_ann <- sum(vapply(ann,  function(x) !is.null(x) && nrow(x) > 0, logical(1)))
+    n_set <- if (length(imgs) == 0) 0L else
+             sum(vapply(names(imgs),
+                        function(nm) !is.null(ppcm_store()[[nm]]),
+                        logical(1)))
 
     if (n_pts == 0) {
-      tags$p("\u26A0 No points annotated", style="color:#e65100; font-size:12px;")
+      tags$p("\u26A0 No points annotated", style = "color:#e65100; font-size:12px;")
     } else {
       tags$p(sprintf("\u2713 %d image(s) annotated, %d points total, %d scale(s) set",
                      n_ann, n_pts, n_set),
-             style="color:#2e7d32; font-size:12px;")
+             style = "color:#2e7d32; font-size:12px;")
     }
   })
   
