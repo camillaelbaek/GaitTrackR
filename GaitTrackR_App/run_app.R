@@ -4,13 +4,13 @@
 pkgs <- c(
   "shiny", "dplyr", "tidyr", "ggplot2", "DT", "stringr", "purrr", "scales",
   "readr", "readxl",                          # metadata CSV / XLSX support
-  "ggridges", "ggpubr", "viridis", "ggbeeswarm", "sp","ggprism"
+  "ggridges", "ggpubr", "viridis", "ggbeeswarm", "sp","ggprism","ggpattern"
 )
 
 # CRAN packages
 cran_pkgs <- c("shiny","dplyr","tidyr","ggplot2","DT","stringr","purrr",
                "scales","readr","readxl","ggridges","ggpubr","viridis",
-               "ggbeeswarm","sp","ggprism")
+               "ggbeeswarm","sp","ggprism","ggpattern")
 bioc_pkgs <- c()
 
 need_cran <- cran_pkgs[!cran_pkgs %in% rownames(installed.packages())]
