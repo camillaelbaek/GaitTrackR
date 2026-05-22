@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="GaitTrackR_logo.png" width="720"/>
+  <img src="logos/GaitTrackR_logo.png" width="720"/>
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@ Starting from individual paw positions, it computes mouse-level gait metrics and
 
 ## Schematic overview
 
-![Schematic of gait measures](gait_measures_schematic_v2.png)
+![Schematic of gait measures](logos/gait_measures_schematic_v2.png)
 
 The schematic illustrates:
 - **Step length** — same paw, along the walking direction
