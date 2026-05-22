@@ -186,6 +186,7 @@ imageAnnotationServer <- function(input, output, session) {
   })
 
   observeEvent(input$img_reuse_scale, {
+    req(current_img_name())   # ← add this line
     if (isTRUE(input$img_reuse_scale) && !is.null(last_ppcm())) {
       ps <- ppcm_store(); ps[[current_img_name()]] <- last_ppcm(); ppcm_store(ps)
     } else if (!isTRUE(input$img_reuse_scale)) {
