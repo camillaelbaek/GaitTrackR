@@ -45,7 +45,7 @@ shiny, readxl, dplyr, tidyr, ggplot2, openxlsx
 ### 💻 From R console (any platform)
 
 ```r
-source("GaitTrackR_App/run_app.R")
+shiny::runGitHub("GaitTrackR, "camillaelbaek", subdir = "GaitTrackR_App")
 ```
 
 ### Mac
@@ -128,7 +128,7 @@ All measures are computed per track and summarized per mouse.
 
 If you use **GaitTrackR** in your research, please cite:
 
-> Elbaek, C. (2025). *GaitTrackR: An interactive Shiny app for mouse gait analysis from paw-print coordinate data*. GitHub. https://github.com/camillaelbaek/GaitTrackR
+> Elbaek, CR. (2026). *GaitTrackR: An interactive Shiny app for mouse gait analysis from paw-print coordinate data*. GitHub. https://github.com/camillaelbaek/GaitTrackR
 
 ---
 
