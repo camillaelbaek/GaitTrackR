@@ -45,7 +45,7 @@ shiny, readxl, dplyr, tidyr, ggplot2, openxlsx
 ### 💻 From R console (any platform)
 
 ```r
-shiny::runGitHub("GaitTrackR, "camillaelbaek", subdir = "GaitTrackR_App")
+shiny::runGitHub("GaitTrackR", "camillaelbaek", subdir = "GaitTrackR_App")
 ```
 
 ### Mac
