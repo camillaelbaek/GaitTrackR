@@ -19,7 +19,7 @@ It includes a built-in image annotation tool to extract paw coordinates directly
 
 ## Schematic overview
 
-![Schematic of gait measures](logos/gait_measures_schematic_v2.png)
+![Schematic of gait measures](logos/gait_measures_schematic_v3.png)
 
 The schematic illustrates the core spatial measures:
 - **Stride length** — same paw, between consecutive prints along the walking direction
