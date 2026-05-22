@@ -1,8 +1,12 @@
-# GaitTrackR <img src="GaitTrackR_App/source/gait_measures_schematic_v2.png" align="right" width="200"/>
+<p align="center">
+  <img src="GaitTrackR_logo.png" width="480"/>
+</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![R Shiny](https://img.shields.io/badge/Built%20with-R%20Shiny-blue.svg)](https://shiny.posit.co/)
-[![Platform](https://img.shields.io/badge/Platform-Mac%20%7C%20Windows-lightgrey.svg)]()
+<p align="center">
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg"/></a>
+  <a href="https://shiny.posit.co/"><img src="https://img.shields.io/badge/Built%20with-R%20Shiny-blue.svg"/></a>
+  <img src="https://img.shields.io/badge/Platform-Mac%20%7C%20Windows-lightgrey.svg"/>
+</p>
 
 ---
 
@@ -37,23 +41,23 @@ shiny, readxl, dplyr, tidyr, ggplot2, openxlsx
 
 ## Quick Start
 
-### 💻 From R console (any platform)
-
-```r
-source("GaitTrackR_App/run_app.R")
-```
-
-### Mac
+### 🍎 Mac
 
 Double-click `Mac_Run_Mouse_App.command`.
 
 > First time only: right-click → Open → Open (to bypass Gatekeeper).
 
-### Windows
+### 🪟 Windows
 
 Double-click `Windows_Run_Mouse_App.bat`.
 
 > If R is not found, install it from [https://cran.r-project.org](https://cran.r-project.org) and try again.
+
+### 💻 From R console (any platform)
+
+```r
+source("GaitTrackR_App/run_app.R")
+```
 
 ---
 
