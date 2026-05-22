@@ -1,5 +1,5 @@
-# app.R — Gait features from paw prints (FL/FR/HL/HR)
-# FL/FR = Front, HL/HR = Hind
+# app.R — Gait features from paw prints
+# front_left / front_right = Front,  hind_left / hind_right = Hind
 # Measures: (1) step length, (2) front–hind distance, (3) perpendicular deviation
 # Upload Excel, define genotype/treatment (from columns OR manual), choose plot + color-by
 
@@ -21,7 +21,7 @@ source("./image_module_server.R")
 # --------- default palettes (editable in UI) ----------
 default_geno_palette <- c(wt="#4D4D4D", het="#a08679", ko="#D95F02")
 default_treat_palette <- c(`NA`="#999999", vehicle="#1B9E77", drug="#E41A1C")
-paw_cols <- c(FL="#e31a1c", FR="#fb9a99", HL="#1f78b4", HR="#a6cee3")
+paw_cols <- c(front_left="#e31a1c", front_right="#fb9a99", hind_left="#1f78b4", hind_right="#a6cee3")
 
 palette_to_text <- function(p) {
   paste(paste0(names(p), " = ", unname(p)), collapse = "\n")
@@ -449,10 +449,9 @@ server <- function(input, output, session){
       )
     df %>%
       mutate(
-        paw = factor(paw, levels=c("FL","FR","HL","HR")),
-        side = if_else(grepl("L$", as.character(paw)), "L", "R"),
-        segment = if_else(grepl("^F", as.character(paw)), "Front", "Hind"),
-        y = 3024 - y
+        paw = factor(paw, levels=c("front_left","front_right","hind_left","hind_right")),
+        side = if_else(grepl("left$", as.character(paw)), "L", "R"),
+        segment = if_else(grepl("^front", as.character(paw)), "Front", "Hind")
       ) %>%
       group_by(mouse_id, image_id, paw) %>%
       arrange(dot_id, .by_group = TRUE) %>%
@@ -509,7 +508,7 @@ server <- function(input, output, session){
         .groups="drop"
       )
 
-    # per-paw step summaries (FL/FR/HL/HR)
+    # per-paw step summaries (front_left/front_right/hind_left/hind_right)
     step_paw_mouse <- step_df %>%
       group_by(mouse_id, paw) %>%
       summarise(
@@ -629,8 +628,8 @@ server <- function(input, output, session){
 
     asym_mouse <- step_paw_mouse %>%
       mutate(
-        asym_step_front = asym_from_paws(mean_step_length_paw_FL, mean_step_length_paw_FR),
-        asym_step_hind  = asym_from_paws(mean_step_length_paw_HL, mean_step_length_paw_HR)
+        asym_step_front = asym_from_paws(mean_step_length_paw_front_left,  mean_step_length_paw_front_right),
+        asym_step_hind  = asym_from_paws(mean_step_length_paw_hind_left,   mean_step_length_paw_hind_right)
       ) %>%
       select(mouse_id, asym_step_front, asym_step_hind)
 
@@ -660,10 +659,10 @@ server <- function(input, output, session){
         mean_abs_drift_y_norm      = mean_abs_drift_y      / mouse_length_cm,
         sd_drift_y_norm            = sd_drift_y            / mouse_length_cm,
         range_drift_y_norm         = range_drift_y         / mouse_length_cm,
-        mean_step_length_paw_FL_norm = mean_step_length_paw_FL / mouse_length_cm,
-        mean_step_length_paw_FR_norm = mean_step_length_paw_FR / mouse_length_cm,
-        mean_step_length_paw_HL_norm = mean_step_length_paw_HL / mouse_length_cm,
-        mean_step_length_paw_HR_norm = mean_step_length_paw_HR / mouse_length_cm
+        mean_step_length_paw_front_left_norm  = mean_step_length_paw_front_left  / mouse_length_cm,
+        mean_step_length_paw_front_right_norm = mean_step_length_paw_front_right / mouse_length_cm,
+        mean_step_length_paw_hind_left_norm   = mean_step_length_paw_hind_left   / mouse_length_cm,
+        mean_step_length_paw_hind_right_norm  = mean_step_length_paw_hind_right  / mouse_length_cm
       )
 
     out %>%
@@ -1295,7 +1294,7 @@ output$download_plot <- downloadHandler(
                      names_to = "paw",
                      values_to = "value") %>%
         mutate(paw = sub("mean_step_length_paw_", "", paw),
-               paw = factor(paw, levels=c("FL","FR","HL","HR")))
+               paw = factor(paw, levels=c("front_left","front_right","hind_left","hind_right")))
 
       if (isTRUE(input$norm_length)) {
         df <- df %>% mutate(mouse_length_cm = suppressWarnings(as.numeric(mouse_length_cm)),
