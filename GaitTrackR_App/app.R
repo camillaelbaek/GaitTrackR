@@ -266,22 +266,34 @@ ui <- fluidPage(
       hr(),
       
       selectInput("plot_type", "Plot type", choices = c(
+        "— Overview —" = "overview_bubble",
         "Mean ± SD (bar)" = "mean_sd",
         "Mean CV ± SD (bar)" = "cv_sd",
         "Per side (FB distance): bar + points" = "side_fb",
         "Per segment (Perpendicular): bar + points" = "seg_perp",
         "Base of support (L-R): bar + points" = "bos",
         "Paw overlap (hind vs front): bar + points" = "overlap",
-        "Per paw step length: bar + points" = "paw_step",
+        "Per paw stride length: bar + points" = "paw_step",
         "Left-right asymmetry index: bar + points" = "asym",
         "Drift / stability (y_perp): bar + points" = "drift",
         "QC tracks (along vs perp)" = "qc_tracks"
-      ), selected = "mean_sd"),
+      ), selected = "overview_bubble"),
+
+      # Overview bubble plot controls
+      conditionalPanel(
+        "input.plot_type=='overview_bubble'",
+        uiOutput("overview_ref_ui"),
+        checkboxInput("show_significance",
+                      "Show significance (Wilcoxon, uncorrected)",
+                      value = FALSE),
+        tags$small("\u26A0 Exploratory only — not corrected for multiple comparisons.",
+                   style="color:#e65100;")
+      ),
       
       conditionalPanel(
         "input.plot_type=='mean_sd' || input.plot_type=='cv_sd'",
         selectInput("measure", "Measurement", choices = c(
-          "Step length" = "step",
+          "Stride length (same paw)" = "step",
           "Front–hind distance (2D)" = "fb2d",
           "Front–hind distance (x only)" = "fbx",
           "Perpendicular deviation" = "perp"
@@ -348,6 +360,18 @@ ui <- fluidPage(
 # --------- server ----------
 server <- function(input, output, session){
   imageAnnotationServer(input, output, session)
+
+  # Dynamic reference group selector for bubble plot
+  output$overview_ref_ui <- renderUI({
+    req(features_mouse())
+    f   <- features_mouse()
+    grp <- input$color_by
+    if (is.null(grp) || grp == "none") grp <- "genotype"
+    if (grp == "genotype+treatment") grp <- "geno_trt"
+    choices <- as.character(unique(na.omit(f[[grp]])))
+    selectInput("overview_ref_group", "Reference group",
+                choices = choices, selected = choices[1])
+  })
   raw_df <- reactive({
     req(input$file)
     readxl::read_xlsx(input$file$datapath)
@@ -491,37 +515,113 @@ server <- function(input, output, session){
   features_mouse <- reactive({
     df <- paws_rot()
 
-    # step length
-    step_df <- df %>%
+    # ---- Stride length (same paw, consecutive prints — Sheppard "stride length") ----
+    stride_df <- df %>%
       filter(!is.na(x_along_cm)) %>%
       arrange(mouse_id, image_id, paw, x_along_cm) %>%
       group_by(mouse_id, image_id, paw) %>%
-      mutate(step_length_cm = x_along_cm - lag(x_along_cm)) %>%
+      mutate(stride_length_cm = x_along_cm - lag(x_along_cm)) %>%
       ungroup() %>%
-      filter(!is.na(step_length_cm))
+      filter(!is.na(stride_length_cm))
 
-    step_mouse <- step_df %>%
+    stride_mouse <- stride_df %>%
       group_by(mouse_id) %>%
       summarise(
-        mean_step_length = mean(step_length_cm, na.rm=TRUE),
-        cv_step_length   = sd(step_length_cm, na.rm=TRUE) / abs(mean_step_length),
+        mean_stride_length = mean(stride_length_cm, na.rm=TRUE),
+        cv_stride_length   = sd(stride_length_cm, na.rm=TRUE) / abs(mean_stride_length),
         .groups="drop"
       )
 
-    # per-paw step summaries (front_left/front_right/hind_left/hind_right)
-    step_paw_mouse <- step_df %>%
+    # per-paw stride summaries
+    stride_paw_mouse <- stride_df %>%
       group_by(mouse_id, paw) %>%
       summarise(
-        mean_step_length_paw = mean(step_length_cm, na.rm=TRUE),
-        sd_step_length_paw   = sd(step_length_cm, na.rm=TRUE),
-        cv_step_length_paw   = sd_step_length_paw / abs(mean_step_length_paw),
+        mean_stride_length_paw = mean(stride_length_cm, na.rm=TRUE),
+        sd_stride_length_paw   = sd(stride_length_cm, na.rm=TRUE),
+        cv_stride_length_paw   = sd_stride_length_paw / abs(mean_stride_length_paw),
         .groups="drop"
       ) %>%
       tidyr::pivot_wider(
-        names_from = paw,
-        values_from = c(mean_step_length_paw, cv_step_length_paw),
-        names_sep = "_"
+        names_from  = paw,
+        values_from = c(mean_stride_length_paw, cv_stride_length_paw),
+        names_sep   = "_"
       )
+
+    # ---- Step length (alternating L→R / R→L — Sheppard "step length") ----
+    step_alt_df <- df %>%
+      filter(!is.na(x_along_cm)) %>%
+      arrange(mouse_id, image_id, segment, x_along_cm) %>%
+      group_by(mouse_id, image_id, segment) %>%
+      mutate(
+        prev_side = lag(side),
+        prev_x    = lag(x_along_cm),
+        is_alt    = !is.na(prev_side) & side != prev_side
+      ) %>%
+      filter(is_alt) %>%
+      mutate(alt_step_cm = x_along_cm - prev_x) %>%
+      ungroup()
+
+    alt_step_mouse <- step_alt_df %>%
+      group_by(mouse_id, segment) %>%
+      summarise(
+        mean_step_length = mean(alt_step_cm, na.rm=TRUE),
+        cv_step_length   = sd(alt_step_cm, na.rm=TRUE) / abs(mean(alt_step_cm, na.rm=TRUE)),
+        .groups="drop"
+      ) %>%
+      tidyr::pivot_wider(
+        names_from  = segment,
+        values_from = c(mean_step_length, cv_step_length),
+        names_sep   = "_"
+      )
+    # yields: mean_step_length_Front, mean_step_length_Hind,
+    #         cv_step_length_Front,   cv_step_length_Hind
+
+    # ---- Left-right stride symmetry index ----
+    # |L_stride - R_stride| / mean(L_stride, R_stride), per segment
+    symmetry_mouse <- stride_paw_mouse %>%
+      mutate(
+        symmetry_front = ifelse(
+          is.finite(mean_stride_length_paw_front_left) & is.finite(mean_stride_length_paw_front_right),
+          abs(mean_stride_length_paw_front_left - mean_stride_length_paw_front_right) /
+            (0.5 * (abs(mean_stride_length_paw_front_left) + abs(mean_stride_length_paw_front_right))),
+          NA_real_),
+        symmetry_hind  = ifelse(
+          is.finite(mean_stride_length_paw_hind_left) & is.finite(mean_stride_length_paw_hind_right),
+          abs(mean_stride_length_paw_hind_left - mean_stride_length_paw_hind_right) /
+            (0.5 * (abs(mean_stride_length_paw_hind_left) + abs(mean_stride_length_paw_hind_right))),
+          NA_real_)
+      ) %>%
+      select(mouse_id, symmetry_front, symmetry_hind)
+
+    # ---- Diagonal coupling phase ----
+    # Phase at which the diagonal front paw lands within the hind stride cycle (0–1)
+    coupling_events <- function(d) {
+      compute_phase <- function(ref_paw, coupled_paw) {
+        ref <- d %>% filter(paw == ref_paw)    %>% arrange(x_along_cm)
+        cop <- d %>% filter(paw == coupled_paw) %>% arrange(x_along_cm)
+        if (nrow(ref) < 2 || nrow(cop) < 1) return(NA_real_)
+        phases <- vapply(seq_len(nrow(ref) - 1), function(i) {
+          x1 <- ref$x_along_cm[i]; x2 <- ref$x_along_cm[i+1]
+          cand <- cop %>% filter(x_along_cm > x1, x_along_cm < x2)
+          if (nrow(cand) == 0) return(NA_real_)
+          (cand$x_along_cm[1] - x1) / (x2 - x1)
+        }, numeric(1))
+        mean(phases, na.rm=TRUE)
+      }
+      data.frame(
+        diagonal_coupling_left  = compute_phase("hind_left",  "front_right"),
+        diagonal_coupling_right = compute_phase("hind_right", "front_left")
+      )
+    }
+
+    coupling_mouse <- df %>%
+      filter(!is.na(x_along_cm)) %>%
+      group_by(mouse_id) %>%
+      group_modify(~coupling_events(.x)) %>%
+      ungroup()
+
+    # legacy alias: keep step_paw_mouse name pointing to stride data for asym
+    step_paw_mouse <- stride_paw_mouse
 
     # front–hind distance (2D + x-only)
     fb_df <- df %>%
@@ -628,41 +728,46 @@ server <- function(input, output, session){
 
     asym_mouse <- step_paw_mouse %>%
       mutate(
-        asym_step_front = asym_from_paws(mean_step_length_paw_front_left,  mean_step_length_paw_front_right),
-        asym_step_hind  = asym_from_paws(mean_step_length_paw_hind_left,   mean_step_length_paw_hind_right)
+        asym_step_front = asym_from_paws(mean_stride_length_paw_front_left,  mean_stride_length_paw_front_right),
+        asym_step_hind  = asym_from_paws(mean_stride_length_paw_hind_left,   mean_stride_length_paw_hind_right)
       ) %>%
       select(mouse_id, asym_step_front, asym_step_hind)
 
     out <- meta %>%
-      left_join(step_mouse,     by="mouse_id") %>%
-      left_join(step_paw_mouse, by="mouse_id") %>%
-      left_join(asym_mouse,     by="mouse_id") %>%
-      left_join(fb_mouse,       by="mouse_id") %>%
-      left_join(bos_mouse,      by="mouse_id") %>%
-      left_join(overlap_mouse,  by="mouse_id") %>%
-      left_join(drift_mouse,    by="mouse_id") %>%
-      left_join(perp_mouse,     by="mouse_id")
+      left_join(stride_mouse,    by="mouse_id") %>%
+      left_join(stride_paw_mouse,by="mouse_id") %>%
+      left_join(alt_step_mouse,  by="mouse_id") %>%
+      left_join(symmetry_mouse,  by="mouse_id") %>%
+      left_join(coupling_mouse,  by="mouse_id") %>%
+      left_join(asym_mouse,      by="mouse_id") %>%
+      left_join(fb_mouse,        by="mouse_id") %>%
+      left_join(bos_mouse,       by="mouse_id") %>%
+      left_join(overlap_mouse,   by="mouse_id") %>%
+      left_join(drift_mouse,     by="mouse_id") %>%
+      left_join(perp_mouse,      by="mouse_id")
 
-    # add length-normalized versions (divide by mouse_length_cm)
+    # length-normalised versions
     out <- out %>%
       mutate(mouse_length_cm = suppressWarnings(as.numeric(mouse_length_cm))) %>%
       mutate(
-        mean_step_length_norm      = mean_step_length      / mouse_length_cm,
-        mean_fb_distance_2d_norm   = mean_fb_distance_2d   / mouse_length_cm,
-        mean_fb_distance_x_norm    = mean_fb_distance_x    / mouse_length_cm,
-        mean_perpendicular_norm    = mean_perpendicular    / mouse_length_cm,
-        mean_overlap_signed_norm   = mean_overlap_signed   / mouse_length_cm,
-        mean_overlap_abs_norm      = mean_overlap_abs      / mouse_length_cm,
-        mean_bos_Front_norm        = mean_bos_Front        / mouse_length_cm,
-        mean_bos_Hind_norm         = mean_bos_Hind         / mouse_length_cm,
-        mean_drift_y_norm          = mean_drift_y          / mouse_length_cm,
-        mean_abs_drift_y_norm      = mean_abs_drift_y      / mouse_length_cm,
-        sd_drift_y_norm            = sd_drift_y            / mouse_length_cm,
-        range_drift_y_norm         = range_drift_y         / mouse_length_cm,
-        mean_step_length_paw_front_left_norm  = mean_step_length_paw_front_left  / mouse_length_cm,
-        mean_step_length_paw_front_right_norm = mean_step_length_paw_front_right / mouse_length_cm,
-        mean_step_length_paw_hind_left_norm   = mean_step_length_paw_hind_left   / mouse_length_cm,
-        mean_step_length_paw_hind_right_norm  = mean_step_length_paw_hind_right  / mouse_length_cm
+        mean_stride_length_norm           = mean_stride_length           / mouse_length_cm,
+        mean_step_length_Front_norm       = mean_step_length_Front       / mouse_length_cm,
+        mean_step_length_Hind_norm        = mean_step_length_Hind        / mouse_length_cm,
+        mean_fb_distance_2d_norm          = mean_fb_distance_2d          / mouse_length_cm,
+        mean_fb_distance_x_norm           = mean_fb_distance_x           / mouse_length_cm,
+        mean_perpendicular_norm           = mean_perpendicular           / mouse_length_cm,
+        mean_overlap_signed_norm          = mean_overlap_signed          / mouse_length_cm,
+        mean_overlap_abs_norm             = mean_overlap_abs             / mouse_length_cm,
+        mean_bos_Front_norm               = mean_bos_Front               / mouse_length_cm,
+        mean_bos_Hind_norm                = mean_bos_Hind                / mouse_length_cm,
+        mean_drift_y_norm                 = mean_drift_y                 / mouse_length_cm,
+        mean_abs_drift_y_norm             = mean_abs_drift_y             / mouse_length_cm,
+        sd_drift_y_norm                   = sd_drift_y                   / mouse_length_cm,
+        range_drift_y_norm                = range_drift_y                / mouse_length_cm,
+        mean_stride_length_paw_front_left_norm  = mean_stride_length_paw_front_left  / mouse_length_cm,
+        mean_stride_length_paw_front_right_norm = mean_stride_length_paw_front_right / mouse_length_cm,
+        mean_stride_length_paw_hind_left_norm   = mean_stride_length_paw_hind_left   / mouse_length_cm,
+        mean_stride_length_paw_hind_right_norm  = mean_stride_length_paw_hind_right  / mouse_length_cm
       )
 
     out %>%
@@ -861,12 +966,12 @@ output$download_plot <- downloadHandler(
     
     # choose measure columns
     if (input$measure == "step") {
-      mean_col_raw <- "mean_step_length"
-      mean_col_norm <- "mean_step_length_norm"
-      cv_col <- "cv_step_length"
-      y_mean_raw <- "Mean step length (cm)"
-      y_mean_norm <- "Step length / body length"
-      y_cv <- "CV(step length)"
+      mean_col_raw <- "mean_stride_length"
+      mean_col_norm <- "mean_stride_length_norm"
+      cv_col <- "cv_stride_length"
+      y_mean_raw <- "Mean stride length (cm)"
+      y_mean_norm <- "Stride length / body length"
+      y_cv <- "CV(stride length)"
     } else if (input$measure == "fb2d") {
       mean_col_raw <- "mean_fb_distance_2d"
       mean_col_norm <- "mean_fb_distance_2d_norm"
@@ -1289,11 +1394,11 @@ output$download_plot <- downloadHandler(
     if (input$plot_type == "paw_step") {
       df <- features_mouse() %>%
         select(mouse_id, genotype, treatment, mouse_length_cm,
-               starts_with("mean_step_length_paw_")) %>%
-        pivot_longer(cols = starts_with("mean_step_length_paw_"),
+               starts_with("mean_stride_length_paw_")) %>%
+        pivot_longer(cols = starts_with("mean_stride_length_paw_"),
                      names_to = "paw",
                      values_to = "value") %>%
-        mutate(paw = sub("mean_step_length_paw_", "", paw),
+        mutate(paw = sub("mean_stride_length_paw_", "", paw),
                paw = factor(paw, levels=c("front_left","front_right","hind_left","hind_right")))
 
       if (isTRUE(input$norm_length)) {
@@ -1482,6 +1587,145 @@ output$download_plot <- downloadHandler(
       return(p)
     }
 
+
+    # ---- Overview bubble plot ----
+    if (input$plot_type == "overview_bubble") {
+      req(input$overview_ref_group)
+      f   <- features_mouse()
+      grp_col <- if (identical(grp, "geno_trt")) "geno_trt" else if (!is.null(grp)) grp else "genotype"
+
+      measure_map <- c(
+        mean_stride_length        = "Stride length",
+        mean_step_length_Front    = "Step length \u2014 Front",
+        mean_step_length_Hind     = "Step length \u2014 Hind",
+        cv_stride_length          = "CV stride length",
+        cv_step_length_Front      = "CV step length \u2014 Front",
+        cv_step_length_Hind       = "CV step length \u2014 Hind",
+        symmetry_front            = "L-R symmetry \u2014 Front",
+        symmetry_hind             = "L-R symmetry \u2014 Hind",
+        diagonal_coupling_left    = "Diagonal coupling \u2014 Left",
+        diagonal_coupling_right   = "Diagonal coupling \u2014 Right",
+        mean_fb_distance_2d       = "FB distance (2D)",
+        mean_fb_distance_x        = "FB distance (x only)",
+        mean_bos_Front            = "Stance width \u2014 Front",
+        mean_bos_Hind             = "Stance width \u2014 Hind",
+        mean_perpendicular        = "Perpendicular deviation",
+        mean_overlap_abs          = "Paw overlap",
+        mean_abs_drift_y          = "Lateral drift"
+      )
+      measure_map <- measure_map[names(measure_map) %in% names(f)]
+
+      ref <- input$overview_ref_group
+
+      long_df <- f %>%
+        select(mouse_id, all_of(grp_col), all_of(names(measure_map))) %>%
+        pivot_longer(cols = all_of(names(measure_map)),
+                     names_to = "measure_key", values_to = "value") %>%
+        mutate(
+          measure_label = factor(measure_map[measure_key],
+                                 levels = rev(unname(measure_map)))
+        ) %>%
+        filter(!is.na(value))
+
+      grp_summ <- long_df %>%
+        group_by(.data[[grp_col]], measure_key, measure_label) %>%
+        summarise(mean_val=mean(value,na.rm=TRUE),
+                  sd_val=sd(value,na.rm=TRUE),
+                  n=sum(!is.na(value)), .groups="drop")
+
+      ref_stats <- grp_summ %>%
+        filter(as.character(.data[[grp_col]]) == ref) %>%
+        select(measure_key, mean_ref=mean_val, sd_ref=sd_val, n_ref=n)
+
+      effect_df <- grp_summ %>%
+        left_join(ref_stats, by="measure_key") %>%
+        mutate(
+          pooled_sd = sqrt(((n-1)*sd_val^2 + (n_ref-1)*sd_ref^2) / pmax(n+n_ref-2, 1)),
+          cohens_d  = ifelse(pooled_sd > 0, (mean_val - mean_ref) / pooled_sd, 0),
+          abs_d     = abs(cohens_d),
+          direction = dplyr::case_when(
+            as.character(.data[[grp_col]]) == ref ~ "reference",
+            cohens_d > 0 ~ "higher",
+            cohens_d < 0 ~ "lower",
+            TRUE ~ "reference"
+          )
+        )
+
+      if (isTRUE(input$show_significance)) {
+        sig_rows <- long_df %>%
+          filter(as.character(.data[[grp_col]]) != ref) %>%
+          group_by(.data[[grp_col]], measure_key) %>%
+          group_modify(function(gd, key) {
+            rv <- long_df %>%
+              filter(as.character(.data[[grp_col]])==ref, measure_key==key$measure_key) %>%
+              pull(value)
+            gv <- gd$value
+            p  <- if (length(rv)>=2 && length(gv)>=2)
+                    tryCatch(wilcox.test(gv, rv, exact=FALSE)$p.value,
+                             error=function(e) NA_real_)
+                  else NA_real_
+            data.frame(p_value=p)
+          }) %>%
+          ungroup() %>%
+          mutate(sig_star = dplyr::case_when(
+            is.na(p_value)  ~ "",
+            p_value < 0.001 ~ "***",
+            p_value < 0.01  ~ "**",
+            p_value < 0.05  ~ "*",
+            p_value < 0.10  ~ "+",
+            TRUE ~ ""
+          ))
+        effect_df <- effect_df %>%
+          left_join(sig_rows %>% select(.data[[grp_col]], measure_key, sig_star),
+                    by=c(grp_col,"measure_key")) %>%
+          mutate(sig_star = tidyr::replace_na(sig_star, ""))
+      } else {
+        effect_df <- effect_df %>% mutate(sig_star="")
+      }
+
+      if (grp_col=="genotype") {
+        effect_df <- effect_df %>%
+          mutate(genotype=factor(as.character(genotype), levels=geno_pal$levels))
+      } else if (grp_col=="treatment") {
+        effect_df <- effect_df %>%
+          mutate(treatment=factor(as.character(treatment), levels=treat_pal$levels))
+      } else if (grp_col=="geno_trt") {
+        effect_df <- effect_df %>%
+          mutate(geno_trt=factor(as.character(geno_trt),
+                                 levels=make_geno_trt_levels(geno_pal$levels, treat_pal$levels)))
+      }
+
+      p <- ggplot(effect_df, aes(x=.data[[grp_col]], y=measure_label)) +
+        geom_point(aes(size=pmax(abs_d, 0.05), fill=direction),
+                   shape=21, colour="grey30", stroke=0.5, alpha=0.88) +
+        scale_size_area(max_size=14, name="|Cohen's d|",
+                        breaks=c(0.2,0.5,0.8,1.2),
+                        labels=c("0.2\nsmall","0.5\nmed","0.8\nlarge","1.2")) +
+        scale_fill_manual(
+          values=c(reference="#CCCCCC", higher="#D7191C", lower="#2C7BB6"),
+          name=paste0("vs ", ref),
+          guide=guide_legend(override.aes=list(size=5))
+        ) +
+        ggprism::theme_prism(base_size=12, base_family="Arial") +
+        theme(
+          panel.grid.major.y = element_line(colour="grey88", linewidth=0.4),
+          axis.text.y        = element_text(size=10),
+          legend.position    = "right",
+          axis.text.x        = element_text(angle=30, hjust=1)
+        ) +
+        labs(
+          title    = paste("Gait overview \u2014 effect size vs", ref),
+          subtitle = if (isTRUE(input$show_significance))
+                       "Wilcoxon test, uncorrected for multiple comparisons" else NULL,
+          x=NULL, y=NULL
+        )
+
+      if (isTRUE(input$show_significance) && any(nzchar(effect_df$sig_star))) {
+        p <- p + geom_text(aes(label=sig_star), size=3.5, vjust=-1.1, colour="grey20")
+      }
+
+      return(p)
+    }
 
     NULL
   })
