@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="GaitTrackR_logo.png" width="480"/>
+  <img src="GaitTrackR_logo.png" width="720"/>
 </p>
 
 <p align="center">
