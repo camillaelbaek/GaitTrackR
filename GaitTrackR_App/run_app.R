@@ -10,8 +10,8 @@ pkgs <- c(
 # CRAN packages
 cran_pkgs <- c("shiny","dplyr","tidyr","ggplot2","DT","stringr","purrr",
                "scales","readr","readxl","ggridges","ggpubr","viridis",
-               "ggbeeswarm","sp")
-bioc_pkgs <- c("ggprism")
+               "ggbeeswarm","sp","ggprism")
+bioc_pkgs <- c()
 
 need_cran <- cran_pkgs[!cran_pkgs %in% rownames(installed.packages())]
 if (length(need_cran)) {
