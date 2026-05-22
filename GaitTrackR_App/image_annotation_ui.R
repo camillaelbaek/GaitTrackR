@@ -1,119 +1,144 @@
-# image_annotation_ui.R
-# UI for the "Image → Data" annotation tab in GaitTrackR
-# Place this file in: GaitTrackR_App/source/
+# image_module_ui.R
+# UI for the "Image -> Data" annotation tab in GaitTrackR
 
 imageAnnotationUI <- function() {
   tagList(
+    tags$head(
+      tags$style(HTML("
+        .scale-set   { color: #2e7d32; font-weight: bold; font-size: 13px; }
+        .scale-unset { color: #999;    font-size: 13px; }
+        .scale-wait  { color: #e65100; font-size: 13px; }
+        .paw-legend  { display: inline-block; width: 12px; height: 12px;
+                       border-radius: 50%; margin-right: 4px; }
+      "))
+    ),
+
     fluidRow(
 
-      # ── Sidebar ──────────────────────────────────────────────────────────────
+      # ---- Sidebar ----
       column(3,
-
-        # Image upload
         wellPanel(
-          h5("📁 Image", style = "font-weight:bold; margin-top:0;"),
-          fileInput("ia_file", NULL,
-                    accept      = c("image/jpeg", "image/png", ".jpg", ".jpeg", ".png"),
-                    buttonLabel = "Browse…",
-                    placeholder = "No file selected"),
+
+          # 1. Upload
+          h4("1. Upload image"),
+          fileInput("img_upload", NULL,
+                    accept = c("image/jpeg", "image/png"),
+                    placeholder = "JPG or PNG"),
           fluidRow(
-            column(6, textInput("ia_mouse_id", "mouse_id", value = "")),
-            column(6, textInput("ia_image_id", "image_id", value = ""))
-          )
-        ),
-
-        # Color mapping
-        wellPanel(
-          h5("🎨 Paw colors", style = "font-weight:bold; margin-top:0;"),
-          tags$small("Which paw type is printed in each color?"),
-          br(), br(),
-          selectInput("ia_color_red",  "Red  =",
-                      choices  = c("Front (FL/FR)" = "front", "Hind (HL/HR)" = "hind"),
-                      selected = "front"),
-          selectInput("ia_color_blue", "Blue =",
-                      choices  = c("Hind (HL/HR)" = "hind", "Front (FL/FR)" = "front"),
-                      selected = "hind")
-        ),
-
-        # Scale calibration
-        wellPanel(
-          h5("📏 Scale", style = "font-weight:bold; margin-top:0;"),
-          checkboxInput("ia_reuse_scale", "Reuse scale from previous image", value = FALSE),
-          uiOutput("ia_scale_ui"),
-          tags$code(textOutput("ia_scale_status"),
-                    style = "background:none; font-size:13px;")
-        ),
-
-        # Auto-detection
-        wellPanel(
-          h5("🔍 Auto-detect", style = "font-weight:bold; margin-top:0;"),
-          fluidRow(
-            column(6, numericInput("ia_thresh_red",  "Red thresh",
-                                   value = 0.20, min = 0.05, max = 0.8, step = 0.05)),
-            column(6, numericInput("ia_thresh_blue", "Blue thresh",
-                                   value = 0.15, min = 0.05, max = 0.8, step = 0.05))
+            column(6, textInput("img_mouse_id", "mouse_id", value = "")),
+            column(6, textInput("img_image_id", "image_id", value = ""))
           ),
-          numericInput("ia_min_blob", "Min blob size (px)", value = 30, min = 5, step = 5),
-          tags$small("Increase min blob size to remove ink speckles."),
-          br(), br(),
-          actionButton("ia_detect", "▶  Detect paws",
-                       class = "btn-success", width = "100%")
-        ),
 
-        # Edit mode
-        wellPanel(
-          h5("✏️ Edit mode", style = "font-weight:bold; margin-top:0;"),
-          tags$small("Click on the image to act in the selected mode."),
-          br(), br(),
-          radioButtons("ia_mode", NULL,
-            choices = c(
-              "Add FL"             = "add_FL",
-              "Add FR"             = "add_FR",
-              "Add HL"             = "add_HL",
-              "Add HR"             = "add_HR",
-              "Delete point"       = "delete",
-              "Toggle L ↔ R"       = "toggle",
-              "Set scale (2 pts)"  = "scale"
+          hr(),
+
+          # 2. Color mapping
+          h4("2. Paw colors"),
+          fluidRow(
+            column(6,
+              selectInput("img_front_color", "Front paws",
+                          choices = c("red", "blue"), selected = "red")
             ),
-            selected = "add_FL"
-          )
-        ),
+            column(6,
+              selectInput("img_hind_color", "Hind paws",
+                          choices = c("blue", "red"), selected = "blue")
+            )
+          ),
+          tags$small("Front = FL/FR,  Hind = HL/HR",
+                     style = "color: gray;"),
 
-        # Batch & export
-        wellPanel(
-          h5("📦 Batch", style = "font-weight:bold; margin-top:0;"),
-          tags$small("Annotate one image at a time. Add each to the batch, then export all at once."),
-          br(), br(),
-          actionButton("ia_add_batch", "✅  Add image to batch",
-                       class = "btn-primary", width = "100%"),
-          br(), br(),
-          downloadButton("ia_export", "⬇  Export batch (.xlsx)",
-                         style = "width:100%;")
+          hr(),
+
+          # 3. Scale
+          h4("3. Set scale"),
+          checkboxInput("img_reuse_scale", "Reuse scale from previous image",
+                        value = FALSE),
+          conditionalPanel("!input.img_reuse_scale",
+            p("Switch to scale mode, then click two points on the ruler.",
+              style = "font-size: 12px; color: gray; margin-bottom: 6px;"),
+            actionButton("img_set_scale_btn", "\U0001F4CF  Start scale mode",
+                         class = "btn-info btn-sm", width = "100%"),
+            br(), br(),
+            numericInput("img_ruler_cm", "Distance between points (cm)",
+                         value = 20, min = 0.1, step = 0.1)
+          ),
+          uiOutput("img_scale_status"),
+
+          hr(),
+
+          # 4. Detect
+          h4("4. Detect paws"),
+          numericInput("img_min_blob", "Min blob size (pixels)",
+                       value = 30, min = 5, max = 1000, step = 5),
+          actionButton("img_detect_btn", "\u25B6  Detect paws",
+                       class = "btn-success", width = "100%"),
+
+          hr(),
+
+          # 5. Edit
+          h4("5. Edit (click on image)"),
+          tags$div(
+            tags$span(class = "paw-legend",
+                      style = "background:#e31a1c;"), "FL",
+            tags$span(class = "paw-legend",
+                      style = "background:#fb9a99; margin-left:8px;"), "FR",
+            tags$span(class = "paw-legend",
+                      style = "background:#1f78b4; margin-left:8px;"), "HL",
+            tags$span(class = "paw-legend",
+                      style = "background:#a6cee3; margin-left:8px;"), "HR",
+            style = "font-size: 12px; margin-bottom: 8px;"
+          ),
+          radioButtons("img_edit_mode", NULL,
+            choices = c(
+              "Add FL"       = "add_FL",
+              "Add FR"       = "add_FR",
+              "Add HL"       = "add_HL",
+              "Add HR"       = "add_HR",
+              "Toggle L \u2194 R" = "toggle_lr",
+              "Delete point" = "delete"
+            ),
+            selected = "toggle_lr"
+          ),
+          actionButton("img_clear_btn", "\U0001F5D1  Clear all points",
+                       class = "btn-warning btn-sm", width = "100%"),
+
+          hr(),
+
+          # 6. Export
+          h4("6. Export"),
+          uiOutput("img_export_status"),
+          br(),
+          downloadButton("img_export_btn", "\u2B07  Download Excel",
+                         class = "btn-primary", style = "width: 100%;")
         )
       ),
 
-      # ── Main panel ──────────────────────────────────────────────────────────
+      # ---- Main panel ----
       column(9,
-
-        # Image canvas
-        div(
-          style = "background:#1e1e1e; border-radius:6px; overflow:hidden; margin-bottom:12px;",
-          plotOutput("ia_plot",
-                     click  = "ia_click",
-                     height = "500px")
+        conditionalPanel("output.img_loaded == false",
+          div(
+            style = paste("border: 2px dashed #ccc; border-radius: 8px;",
+                          "padding: 60px; text-align: center; color: #aaa;",
+                          "margin-bottom: 12px;"),
+            tags$i(class = "ti ti-photo", style = "font-size: 48px;"),
+            br(), br(),
+            p("Upload an image to start annotating",
+              style = "font-size: 16px;")
+          )
         ),
 
-        # Tables
-        fluidRow(
-          column(6,
-            h5("Current image — annotated points"),
-            DTOutput("ia_points_dt")
-          ),
-          column(6,
-            h5("Batch — accumulated images"),
-            DTOutput("ia_batch_dt")
-          )
-        )
+        # Image with click overlay
+        uiOutput("img_plot_ui"),
+
+        # Status bar
+        div(style = "margin: 6px 0 10px 0;",
+          uiOutput("img_mode_status")
+        ),
+
+        hr(),
+
+        # Points table
+        h5("Detected / annotated points"),
+        DT::DTOutput("img_points_table")
       )
     )
   )

@@ -14,6 +14,11 @@ library(ggprism)
 library(scales)
 library(ggpattern)
 
+# In app.R, after library() calls:
+source("image_module_ui.R")
+source("image_module_server.R")
+
+
 # --------- default palettes (editable in UI) ----------
 default_geno_palette <- c(wt="#4D4D4D", het="#a08679", ko="#D95F02")
 default_treat_palette <- c(`NA`="#999999", vehicle="#1B9E77", drug="#E41A1C")
@@ -214,8 +219,12 @@ perpendicular_events <- function(df_segment){
 
 # --------- UI ----------
 ui <- fluidPage(
-  titlePanel("Gait features from paw prints (FL/FR/HL/HR)"),
-  sidebarLayout(
+  titlePanel("GaitTrackR — Gait features from paw prints"),
+  tabsetPanel(
+    tabPanel("\U0001F5BC  Image \u2192 Data", br(), imageAnnotationUI()),
+    tabPanel("\U0001F4CA  Analysis",
+    br(),
+    sidebarLayout(
     sidebarPanel(
       fileInput("file", "Upload Excel (.xlsx)", accept = ".xlsx"),
       checkboxInput("align", "Straighten tracks (alignment)", FALSE),
@@ -331,13 +340,15 @@ ui <- fluidPage(
       plotOutput("plot", height = 520),
       hr(),
       
-    )
-  )
-)
+    )   # closes mainPanel
+  )     # closes sidebarLayout
+  )     # closes tabPanel("Analysis")
+  )     # closes tabsetPanel
+)       # closes fluidPage
 
 # --------- server ----------
 server <- function(input, output, session){
-  
+  imageAnnotationServer(input, output, session)
   raw_df <- reactive({
     req(input$file)
     readxl::read_xlsx(input$file$datapath)
