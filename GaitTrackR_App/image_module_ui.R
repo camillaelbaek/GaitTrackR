@@ -2,13 +2,38 @@
 
 imageAnnotationUI <- function() {
   tagList(
-    tags$head(tags$style(HTML("
-      .scale-set   { color:#2e7d32; font-weight:bold; font-size:13px; }
-      .scale-unset { color:#999; font-size:13px; }
-      .scale-wait  { color:#e65100; font-size:13px; }
-      .paw-legend  { display:inline-block; width:12px; height:12px;
-                     border-radius:50%; margin-right:4px; }
-    "))),
+    tags$head(
+      tags$style(HTML("
+        .scale-set   { color:#2e7d32; font-weight:bold; font-size:13px; }
+        .scale-unset { color:#999; font-size:13px; }
+        .scale-wait  { color:#e65100; font-size:13px; }
+        .paw-legend  { display:inline-block; width:12px; height:12px;
+                       border-radius:50%; margin-right:4px; }
+        .kbd { display:inline-block; padding:1px 6px; border:1px solid #bbb;
+               border-radius:3px; background:#f7f7f7; font-family:monospace;
+               font-size:12px; color:#333; }
+      ")),
+      tags$script(HTML("
+        $(document).on('keydown', function(e) {
+          // Skip if focus is inside a text field
+          if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+
+          var dir = null;
+          if (e.key === '+' || e.key === '=') dir = 'in';
+          else if (e.key === '-' || e.key === '_') dir = 'out';
+          else if (e.key === '0') dir = 'reset';
+
+          if (dir !== null) {
+            e.preventDefault();
+            Shiny.setInputValue(
+              'img_zoom_key',
+              { direction: dir, nonce: Math.random() },
+              { priority: 'event' }
+            );
+          }
+        });
+      "))
+    ),
 
     fluidRow(
 
@@ -96,14 +121,14 @@ imageAnnotationUI <- function() {
 
           # 7. Zoom
           h4("7. Zoom"),
-          p("Drag on image to select region, then click Zoom in.",
-            style = "font-size:12px; color:gray; margin-bottom:6px;"),
-          fluidRow(
-            column(6, actionButton("img_zoom_btn", "\U0001F50D Zoom in",
-                                   class="btn-sm btn-default", width="100%")),
-            column(6, actionButton("img_reset_zoom_btn", "\u21BA Reset",
-                                   class="btn-sm btn-default", width="100%"))
+          tags$div(style = "font-size:12px; color:gray; margin-bottom:8px; line-height:1.8;",
+            tags$span(class="kbd", "+"), " / ", tags$span(class="kbd", "="),
+            " zoom in",  tags$br(),
+            tags$span(class="kbd", "\u2212"), " zoom out", tags$br(),
+            tags$span(class="kbd", "0"), " reset"
           ),
+          actionButton("img_reset_zoom_btn", "\u21BA Reset zoom",
+                       class="btn-sm btn-default", width="100%"),
 
           hr(),
 

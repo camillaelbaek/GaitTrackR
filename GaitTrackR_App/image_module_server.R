@@ -171,7 +171,6 @@ imageAnnotationServer <- function(input, output, session) {
     h <- min(600, round(800 * d$height / d$width))
     plotOutput("img_annotation_plot",
                click  = "img_plot_click",
-               brush  = brushOpts("img_brush", resetOnNew = TRUE),
                height = paste0(h, "px"))
   })
 
@@ -208,13 +207,44 @@ imageAnnotationServer <- function(input, output, session) {
   })
 
   # ---- Zoom ----
-  observeEvent(input$img_zoom_btn, {
-    br <- input$img_brush
-    if (!is.null(br)) {
-      zoom_state(list(
-        xlim = c(br$xmin, br$xmax),
-        ylim = c(br$ymax, br$ymin)   # keep inverted (image convention)
-      ))
+  # ---- Keyboard zoom (+  -  0) -----------------------------------------------
+  observeEvent(input$img_zoom_key, {
+    req(current_img_data())
+    d   <- current_img_data()
+    zs  <- zoom_state()
+    dir <- input$img_zoom_key$direction
+
+    if (dir == "reset") { zoom_state(NULL); return() }
+
+    # Current view limits (ylim is inverted: ylim[1] > ylim[2])
+    xlim <- if (!is.null(zs)) zs$xlim else c(0, d$width)
+    ylim <- if (!is.null(zs)) zs$ylim else c(d$height, 0)
+
+    factor <- if (dir == "in") 0.65 else 1 / 0.65
+
+    # Center of current view
+    cx <- mean(xlim)
+    cy <- mean(ylim)   # works fine even with inverted y
+
+    # New half-extents
+    hx <- (xlim[2] - xlim[1]) / 2 * factor
+    hy <- (ylim[1] - ylim[2]) / 2 * factor   # ylim[1] > ylim[2]
+
+    new_xlim <- c(cx - hx, cx + hx)
+    new_ylim <- c(cy + hy, cy - hy)           # keep inverted
+
+    # Clamp to image bounds
+    new_xlim[1] <- max(0,        new_xlim[1])
+    new_xlim[2] <- min(d$width,  new_xlim[2])
+    new_ylim[1] <- min(d$height, new_ylim[1])
+    new_ylim[2] <- max(0,        new_ylim[2])
+
+    # If zoomed all the way out, just reset
+    if (new_xlim[2] - new_xlim[1] >= d$width &&
+        new_ylim[1] - new_ylim[2] >= d$height) {
+      zoom_state(NULL)
+    } else {
+      zoom_state(list(xlim = new_xlim, ylim = new_ylim))
     }
   })
 
