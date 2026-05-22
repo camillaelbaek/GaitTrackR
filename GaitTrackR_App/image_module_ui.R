@@ -107,14 +107,19 @@ imageAnnotationUI <- function() {
 
           hr(),
 
-          # 8. Export
-          h4("8. Export"),
+          # 8. Save & Export
+          h4("8. Save & Export"),
+          actionButton("img_save_temp_btn", "\U0001F4BE  Save current image to temp",
+                       class = "btn-success", width = "100%"),
+          br(), br(),
+          uiOutput("img_temp_status"),
+          hr(),
           uiOutput("img_export_status"),
           br(),
           downloadButton("img_export_current", "\u2B07 Current image (.xlsx)",
                          class = "btn-default btn-sm",
                          style = "width:100%; margin-bottom:6px;"),
-          downloadButton("img_export_all", "\u2B07 All images (.xlsx)",
+          downloadButton("img_export_temp", "\u2B07 All saved / temp (.xlsx)",
                          class = "btn-primary",
                          style = "width:100%;")
         )

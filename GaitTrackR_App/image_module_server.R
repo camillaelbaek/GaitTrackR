@@ -32,6 +32,7 @@ imageAnnotationServer <- function(input, output, session) {
   scale_clicks_xy  <- reactiveVal(list(x = numeric(0), y = numeric(0)))
   ppcm_store       <- reactiveVal(list())   # pixels_per_cm per image name
   last_ppcm        <- reactiveVal(NULL)
+  temp_store <- reactiveVal(list())   # explicitly saved snapshots
 
   # ---- Derived ----
   current_img_data <- reactive({
@@ -296,6 +297,23 @@ imageAnnotationServer <- function(input, output, session) {
     nm <- current_img_name()
     ann <- all_annotations(); ann[[nm]] <- NULL; all_annotations(ann)
   })
+  
+  # ---- Save current image to temp ----
+  observeEvent(input$img_save_temp_btn, {
+    nm  <- current_img_name()
+    df  <- build_export_df(nm)
+    if (is.null(df) || nrow(df) == 0) {
+      showNotification("No points to save for this image.", type = "warning", duration = 3)
+      return()
+    }
+    ts       <- temp_store()
+    ts[[nm]] <- df
+    temp_store(ts)
+    showNotification(
+      sprintf("\U0001F4BE Saved: %s (%d points)", nm, nrow(df)),
+      type = "message", duration = 3
+    )
+  })
 
   # ---- Render plot ----
   output$img_annotation_plot <- renderPlot({
@@ -391,6 +409,34 @@ imageAnnotationServer <- function(input, output, session) {
              style="color:#2e7d32; font-size:12px;")
     }
   })
+  
+  output$img_temp_status <- renderUI({
+    ts <- temp_store()
+    if (length(ts) == 0) {
+      tags$p("Temp store empty", style = "color:gray; font-size:12px;")
+    } else {
+      n_pts <- sum(sapply(ts, nrow))
+      saved_list <- lapply(names(ts), function(nm) {
+        tags$div(
+          style = "font-size:11px; color:#2e7d32;",
+          paste0("\u2713 ", nm, " (", nrow(ts[[nm]]), " pts)")
+        )
+      })
+      tagList(
+        tags$p(sprintf("%d image(s) in temp, %d points total",
+                       length(ts), n_pts),
+               style = "font-size:12px; font-weight:bold; color:#2e7d32; margin-bottom:4px;"),
+        saved_list,
+        br(),
+        actionButton("img_clear_temp_btn", "\U0001F5D1  Clear temp",
+                     class = "btn-warning btn-sm", width = "100%")
+      )
+    }
+  })
+
+  observeEvent(input$img_clear_temp_btn, {
+    temp_store(list())
+  })
 
   # ---- Build export df (one image) ----
   build_export_df <- function(nm) {
@@ -420,16 +466,16 @@ imageAnnotationServer <- function(input, output, session) {
     }
   )
 
-  # ---- Export all images ----
-  output$img_export_all <- downloadHandler(
-    filename = function() "all_images_coordinates.xlsx",
+  # ---- Export temp ----
+  output$img_export_temp <- downloadHandler(
+    filename = function() "saved_coordinates.xlsx",
     content = function(file) {
-      dfs <- Filter(Negate(is.null),
-                    lapply(names(all_images_data()), build_export_df))
-      req(length(dfs) > 0)
-      combined <- do.call(rbind, dfs)
+      ts <- temp_store()
+      req(length(ts) > 0)
+      combined <- do.call(rbind, ts)
       combined <- combined[order(combined$image_id, combined$paw, combined$dot_id), ]
       writexl::write_xlsx(combined, file)
     }
   )
+  
 }
