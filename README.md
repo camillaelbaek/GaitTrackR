@@ -5,13 +5,13 @@
 <p align="center">
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg"/></a>
   <a href="https://shiny.posit.co/"><img src="https://img.shields.io/badge/Built%20with-R%20Shiny-blue.svg"/></a>
-  <img src="https://img.shields.io/badge/Platform-Mac%20%7C%20Windows-lightgrey.svg"/>
+  <img src="https://img.shields.io/badge/Platform-Mac%20%7C%20Windows%20%7C%20Linux-lightgrey.svg"/>
 </p>
 
 ---
 
 **GaitTrackR** is an interactive R Shiny app for analyzing mouse gait from paw-print coordinate data (e.g. footprint tracking from walking assays).
-Starting from individual paw positions, it computes mouse-level gait metrics and visualizes them across genotypes, treatments, or genotype–treatment combinations.
+It includes a built-in image annotation tool to extract paw coordinates directly from photos, and computes mouse-level gait metrics visualized across genotypes, treatments, or genotype–treatment combinations.
 
 > ⚠️ **No hypothesis testing is performed.** GaitTrackR reports descriptive statistics only (mean, SD, CV). Statistical comparisons are left to the user.
 
@@ -34,13 +34,13 @@ The schematic illustrates:
 - The following R packages (installed automatically on first run if missing):
 
 ```r
-shiny, readxl, dplyr, tidyr, ggplot2, openxlsx
+shiny, dplyr, tidyr, ggplot2, readxl, writexl, DT,
+ggprism, ggpattern, ggrepel, scales, magick, imager
 ```
 
 ---
 
 ## Quick Start
-
 
 ### 💻 From R console (any platform)
 
@@ -50,20 +50,35 @@ shiny::runGitHub("GaitTrackR", "camillaelbaek", subdir = "GaitTrackR_App")
 
 ### Mac
 
-Double-click `Mac_Run_Mouse_App.command`.
+Double-click `GaitTrackR_App/Mac_Run_Mouse_App.command`.
 
 > First time only: right-click → Open → Open (to bypass Gatekeeper).
 
 ### Windows
 
-Double-click `Windows_Run_Mouse_App.bat`.
+Double-click `GaitTrackR_App/Windows_Run_Mouse_App.bat`.
 
 > If R is not found, install it from [https://cran.r-project.org](https://cran.r-project.org) and try again.
-
 
 ---
 
 ## What the app does
+
+The app has two tabs:
+
+### 🖼 Image → Data
+Extract paw-print coordinates directly from walking assay photos (JPG/PNG):
+
+| Feature | Details |
+|---|---|
+| **Upload image** | JPG or PNG of a single mouse walking track |
+| **Auto-detect paws** | Color segmentation (red = front, blue = hind, or configurable) |
+| **Set scale** | Click two points on the ruler → enter distance in cm |
+| **Edit annotations** | Add, delete, or toggle L/R for any detected point |
+| **Export** | Saves an Excel file in the exact format expected by the Analysis tab |
+
+### 📊 Analysis
+Compute and visualize gait metrics from paw-print coordinate data:
 
 | Feature | Details |
 |---|---|
@@ -76,7 +91,7 @@ Double-click `Windows_Run_Mouse_App.bat`.
 
 ---
 
-## Input data format
+## Input data format (Analysis tab)
 
 Your Excel file **must** contain the following columns:
 
@@ -99,6 +114,8 @@ Strongly recommended:
 
 Other columns (e.g. `sex`, `color`) are allowed and ignored unless explicitly used.
 
+> 💡 The Image → Data tab exports files in exactly this format.
+
 ---
 
 ## Gait measures computed
@@ -120,7 +137,8 @@ All measures are computed per track and summarized per mouse.
 2. Make sure `pixels_per_cm` is numeric and correct
 3. Verify genotype/treatment spelling consistency
 4. Try toggling "Straighten tracks" on/off
-5. Restart the app and re-upload the file
+5. If paw detection finds too many/few blobs, adjust "Min blob size" in the Image → Data tab
+6. Restart the app and re-upload the file
 
 ---
 
