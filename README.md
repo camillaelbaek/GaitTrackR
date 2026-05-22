@@ -37,23 +37,23 @@ shiny, readxl, dplyr, tidyr, ggplot2, openxlsx
 
 ## Quick Start
 
-### 🍎 Mac
-
-Double-click `Mac_Run_Mouse_App.command`.
-
-> First time only: right-click → Open → Open (to bypass Gatekeeper).
-
-### 🪟 Windows
-
-Double-click `Windows_Run_Mouse_App.bat`.
-
-> If R is not found, install it from [https://cran.r-project.org](https://cran.r-project.org) and try again.
-
 ### 💻 From R console (any platform)
 
 ```r
 source("GaitTrackR_App/run_app.R")
 ```
+
+### Mac
+
+Double-click `Mac_Run_Mouse_App.command`.
+
+> First time only: right-click → Open → Open (to bypass Gatekeeper).
+
+### Windows
+
+Double-click `Windows_Run_Mouse_App.bat`.
+
+> If R is not found, install it from [https://cran.r-project.org](https://cran.r-project.org) and try again.
 
 ---
 
