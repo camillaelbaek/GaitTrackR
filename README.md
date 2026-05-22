@@ -1,55 +1,93 @@
-# Gait Analysis from Paw Prints (Shiny App)
+# GaitTrackR <img src="GaitTrackR_App/source/gait_measures_schematic_v2.png" align="right" width="200"/>
 
-## 1) What does this app do?
-
-This Shiny app analyzes **mouse gait features** from paw-print coordinate data (e.g. footprint tracking from walking assays).
-Starting from individual paw positions, it computes **mouse-level gait metrics** and visualizes them across genotypes,
-treatments, or genotype–treatment combinations.
-
-The app allows you to:
-- Upload paw-print data from an Excel file
-- Assign genotype and treatment (from file columns or manually)
-- Optionally straighten walking trajectories (estimate the walking axis)
-- Compute and visualize core gait measures
-- Compare groups using **descriptive statistics only** (mean, SD, CV)
-- Export mouse-level features and plots
-
-⚠️ **No hypothesis testing is performed** (no p-values, no ANOVA, no t-tests).
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![R Shiny](https://img.shields.io/badge/Built%20with-R%20Shiny-blue.svg)](https://shiny.posit.co/)
+[![Platform](https://img.shields.io/badge/Platform-Mac%20%7C%20Windows-lightgrey.svg)]()
 
 ---
 
-## Schematic overview (recommended)
+**GaitTrackR** is an interactive R Shiny app for analyzing mouse gait from paw-print coordinate data (e.g. footprint tracking from walking assays).
+Starting from individual paw positions, it computes mouse-level gait metrics and visualizes them across genotypes, treatments, or genotype–treatment combinations.
 
-![Schematic of gait measures](gait_measures_schematic_v2.png)
+> ⚠️ **No hypothesis testing is performed.** GaitTrackR reports descriptive statistics only (mean, SD, CV). Statistical comparisons are left to the user.
+
+---
+
+## Schematic overview
+
+![Schematic of gait measures](GaitTrackR_App/source/gait_measures_schematic_v2.png)
 
 The schematic illustrates:
-- **Step length** (same paw, along the walking direction)
-- **Front–hind (FB) distance** as **2D** distance and as **x-only** distance
-- **Perpendicular deviation (updated definition)** as the shortest distance from an “intermediate” paw print to the line
-  connecting two consecutive prints of the opposite-side paw (computed separately for front and hind legs, and for L→R and R→L)
+- **Step length** — same paw, along the walking direction
+- **Front–hind (FB) distance** — as full 2D distance and as x-only distance
+- **Perpendicular deviation** — shortest distance from an intermediate paw print to the line connecting two consecutive prints of the opposite-side paw (computed separately for front and hind legs, and for L→R and R→L)
 
 ---
 
-## 2) Input data format
+## Requirements
 
-### Required columns
+- [R](https://cran.r-project.org/) (≥ 4.0)
+- The following R packages (installed automatically on first run if missing):
+
+```r
+shiny, readxl, dplyr, tidyr, ggplot2, openxlsx
+```
+
+---
+
+## Quick Start
+
+### 🍎 Mac
+
+Double-click `Mac_Run_Mouse_App.command`.
+
+> First time only: right-click → Open → Open (to bypass Gatekeeper).
+
+### 🪟 Windows
+
+Double-click `Windows_Run_Mouse_App.bat`.
+
+> If R is not found, install it from [https://cran.r-project.org](https://cran.r-project.org) and try again.
+
+### 💻 From R console (any platform)
+
+```r
+source("GaitTrackR_App/run_app.R")
+```
+
+---
+
+## What the app does
+
+| Feature | Details |
+|---|---|
+| **Upload data** | Excel file (.xlsx) with paw-print coordinates |
+| **Assign groups** | Genotype and treatment from file columns or manually |
+| **Straighten tracks** | Optional: estimate and align the walking axis |
+| **Compute gait measures** | Step length, FB distance (2D and x-only), perpendicular deviation |
+| **Visualize** | Bar plots (mean ± SD), CV plots, individual mice overlaid |
+| **Export** | Mouse-level feature table and plots |
+
+---
+
+## Input data format
 
 Your Excel file **must** contain the following columns:
 
-| Column name | Description |
-|------------|-------------|
+| Column | Description |
+|---|---|
 | `mouse_id` | Unique identifier for each mouse |
-| `dot_id` | Sequential index of paw prints within a paw |
+| `dot_id` | Sequential index of paw prints within a paw (must increase along walking direction) |
 | `x` | X coordinate of paw print (pixels) |
 | `y` | Y coordinate of paw print (pixels) |
 | `paw` | Paw identity: `FL`, `FR`, `HL`, `HR` |
 
-### Strongly recommended columns
+Strongly recommended:
 
-| Column name | Description |
-|------------|-------------|
+| Column | Description |
+|---|---|
 | `image_id` | Identifier for the walking track / image |
-| `pixels_per_cm` | Pixel-to-cm conversion factor |
+| `pixels_per_cm` | Pixel-to-cm conversion factor (must be numeric) |
 | `genotype` | Genotype label (e.g. `wt`, `het`, `ko`) |
 | `treatment` | Treatment label (e.g. `vehicle`, `drug`) |
 
@@ -57,174 +95,43 @@ Other columns (e.g. `sex`, `color`) are allowed and ignored unless explicitly us
 
 ---
 
-### Example input (excerpt)
+## Gait measures computed
 
-```
-mouse_id dot_id    x      y   image_id pixels_per_cm color paw sex genotype
-193      1       426   1299   193_1     126.3         blue  HL  m   ko
-193      2      1319.5 1346.5 193_1     126.3         blue  HL  m   ko
-193      3      2315.5 1358.5 193_1     126.3         blue  HL  m   ko
-193      4      3338.5 1367.5 193_1     126.3         blue  HL  m   ko
-193      5       809.5 1577.5 193_1     126.3         blue  HR  m   ko
-```
+All measures are computed per track and summarized per mouse.
 
-Notes:
-- Coordinates can be integer or decimal.
-- One row = one detected paw print.
-- `dot_id` must increase along the walking direction **within each paw**.
-- `pixels_per_cm` must be numeric (used for unit conversion).
+| Measure | Description |
+|---|---|
+| **Step length** | Forward distance between consecutive prints of the same paw |
+| **FB distance (2D)** | Full 2D spacing between paired front and hind paws |
+| **FB distance (x-only)** | Forward-only spacing between paired front and hind paws |
+| **Perpendicular deviation** | Shortest distance from an intermediate paw to the line defined by two consecutive opposite-side paws |
 
 ---
 
-## 3) Coordinate system used by the app
-
-The app centers (and optionally aligns) each track to define:
-- **x_along**: the walking direction (forward axis)
-- **y_perp**: lateral deviation from the walking axis (side-to-side)
-
-All reported gait measures are in **cm** (after dividing by `pixels_per_cm`).
-
----
-
-## 4) Gait measures computed
-
-All measures are computed per track and then summarized **per mouse**.
-
-### 4.1 Step length
-
-**What it measures:**  
-How far the **same paw** moves forward between consecutive paw prints.
-
-**How it’s calculated:**
-- For each paw (FL, FR, HL, HR), sort prints along x_along
-- Compute the difference between consecutive prints
-- Average across all paws/steps for each mouse
-
-**Equation (for a given paw):**
-\[
-\text{step\_length}_i = x_{i} - x_{i-1}
-\]
-Mouse-level mean:
-\[
-\overline{\text{step length}} = \frac{1}{N} \sum_{i=1}^{N} \text{step\_length}_i
-\]
-
----
-
-### 4.2 Front–hind (FB) distance — **two versions**
-
-This app reports FB distance in two ways:
-
-#### A) FB distance (2D)
-
-**What it measures:**  
-Full 2D spacing between paired front and hind paws (x and y both contribute).
-
-**Equation:**
-\[
-\text{FB}_{2D} =
-\sqrt{(x_\text{front} - x_\text{hind})^2 + (y_\text{front} - y_\text{hind})^2}
-\]
-
-#### B) FB distance (x-only)
-
-**What it measures:**  
-Forward spacing between paired front and hind paws **ignoring y**.
-
-**Equation:**
-\[
-\text{FB}_{x} = |x_\text{front} - x_\text{hind}|
-\]
-
-**Note:** If you want a *pure lateral-only* FB measure, that would be:
-\[
-\text{FB}_{y} = |y_\text{front} - y_\text{hind}|
-\]
-(not currently included unless you ask for it).
-
----
-
-### 4.3 Perpendicular deviation (updated definition)
-
-**What it measures:**  
-How much the gait alternation “wanders” laterally relative to the opposite-side step-to-step line.
-
-**How it’s calculated (plain words):**
-This is computed separately for:
-- **Front legs** (FL/FR)
-- **Hind legs** (HL/HR)
-
-And in both directions:
-1) **Left reference:** take two consecutive **left** steps (e.g. FL at step i and step i+1) → this defines a line.  
-   Then find the **intermediate right** step whose x_along lies between them (e.g. FR) and compute the **shortest (perpendicular) distance** from that intermediate point to the line.
-
-2) **Right reference:** same idea, but using two consecutive **right** steps and the intermediate **left** step.
-
-**Point-to-line distance equation:**
-
-For a line through points \((x_1, y_1)\) and \((x_2, y_2)\), and an intermediate point \((x_0, y_0)\):
-\[
-d_\perp =
-\frac{|(x_2-x_1)(y_1-y_0) - (x_1-x_0)(y_2-y_1)|}
-{\sqrt{(x_2-x_1)^2 + (y_2-y_1)^2}}
-\]
-
----
-
-## 5) Summary statistics used (descriptive only)
-
-This app reports **descriptive statistics only**:
-
-### Mean
-\[
-\mu = \frac{1}{N}\sum_{i=1}^{N} x_i
-\]
-
-### Standard deviation (SD)
-\[
-\sigma = \sqrt{\frac{1}{N-1}\sum_{i=1}^{N}(x_i - \mu)^2}
-\]
-
-### Coefficient of variation (CV)
-\[
-\text{CV} = \frac{\sigma}{|\mu|}
-\]
-
-Displayed as:
-- Mean ± SD bar plots
-- Mean CV ± SD bar plots
-- Individual mice overlaid where appropriate
-
----
-
-## 6) Genotype + treatment (`geno_trt`) grouping
-
-When coloring by **genotype + treatment**, groups are ordered as:
-
-```
-geno1_trt1
-geno1_trt2
-geno2_trt1
-geno2_trt2
-```
-
-The order is determined by how you write the genotype and treatment palettes
-in the UI boxes (top-to-bottom). Colors use genotype as the base color, and
-treatment is encoded by alpha shading (same color family).
-
----
-
-## 7) Troubleshooting
-
-If something looks wrong:
+## Troubleshooting
 
 1. Check that `dot_id` increases correctly within each paw
 2. Make sure `pixels_per_cm` is numeric and correct
 3. Verify genotype/treatment spelling consistency
-4. Try toggling “Straighten tracks” on/off
+4. Try toggling "Straighten tracks" on/off
 5. Restart the app and re-upload the file
 
-If problems persist:
+---
 
-☎️ **Call your girlfriend.**  
-She can probably fix the bug, but give her patience.
+## Citation
+
+If you use **GaitTrackR** in your research, please cite:
+
+> Elbaek, C. (2025). *GaitTrackR: An interactive Shiny app for mouse gait analysis from paw-print coordinate data*. GitHub. https://github.com/camillaelbaek/GaitTrackR
+
+---
+
+## License
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+---
+
+## Contact
+
+For questions or bug reports, please open a [GitHub issue](https://github.com/camillaelbaek/GaitTrackR/issues).

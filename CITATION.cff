@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use GaitTrackR in your research, please cite it as below."
+title: "GaitTrackR: An interactive Shiny app for mouse gait analysis from paw-print coordinate data"
+version: 1.0.0
+date-released: 2025-01-01
+license: MIT
+url: "https://github.com/camillaelbaek/GaitTrackR"
+repository-code: "https://github.com/camillaelbaek/GaitTrackR"
+authors:
+  - given-names: "Camilla"       # fill in your full name
+    family-names: "Reiter Elbæk"             # fill in your family name
+    alias: celbaek
+    orcid: "https://orcid.org/0000-0002-6326-6047"   # replace with your ORCID
+    affiliation: "Centre for Genomic Regulation (CRG), Barcelona"
+repository-code: "https://github.com/camillaelbaek/scenithR"
+url: "https://github.com/camillaelbaek/scenithR"
+keywords:
+  - mouse gait
+  - paw print
+  - gait analysis
+  - R Shiny
+  - neuroscience
+  - walking assay
+abstract: >
+  GaitTrackR is an interactive R Shiny application for analyzing mouse gait
+  from paw-print coordinate data. Starting from individual paw positions,
+  it computes mouse-level gait metrics (step length, front-hind distance,
+  perpendicular deviation) and visualizes them across genotypes and treatments
+  using descriptive statistics.
