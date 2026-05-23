@@ -183,6 +183,19 @@ imageAnnotationServer <- function(input, output, session) {
     showNotification("Scale mode: click first point on ruler",
                      type = "message", duration = 4)
   })
+  
+  # ---- Recompute scale from stored clicks when user hits Update ----
+  observeEvent(input$img_update_scale_btn, {
+    sc <- scale_clicks_xy()
+    nm <- current_img_name()
+    req(nm, length(sc$x) >= 2)
+    
+    ppcm <- sqrt((sc$x[2] - sc$x[1])^2 + (sc$y[2] - sc$y[1])^2) / input$img_ruler_cm
+    ps <- ppcm_store(); ps[[nm]] <- ppcm; ppcm_store(ps)
+    last_ppcm(ppcm)
+    showNotification(sprintf("\u2713 Scale updated: %.1f px/cm", ppcm),
+                     type = "message", duration = 4)
+  })
 
   observeEvent(input$img_reuse_scale, {
     req(current_img_name())   # ← add this line
