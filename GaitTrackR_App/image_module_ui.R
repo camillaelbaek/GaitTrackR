@@ -87,7 +87,9 @@ imageAnnotationUI <- function() {
                          class = "btn-info btn-sm", width = "100%"),
             br(), br(),
             numericInput("img_ruler_cm", "Distance between points (cm)",
-                         value = 20, min = 0.1, step = 0.1)
+                         value = 20, min = 0.1, step = 0.1),
+            actionButton("img_update_scale_btn", "\u21BB  Update scale",
+                         class = "btn-warning btn-sm", width = "100%")
           ),
           uiOutput("img_scale_status"),
 
@@ -96,12 +98,13 @@ imageAnnotationUI <- function() {
           # 6. Add paw prints
           h4("6. Add paw prints"),
           tags$div(
-            tags$span(class="paw-legend", style="background:#e31a1c;"), "front_left",
-            tags$span(class="paw-legend", style="background:#fb9a99; margin-left:8px;"), "front_right",
-            br(),
-            tags$span(class="paw-legend", style="background:#1f78b4;"), "hind_left",
-            tags$span(class="paw-legend", style="background:#a6cee3; margin-left:8px;"), "hind_right",
-            style = "font-size:12px; margin-bottom:8px;"
+          uiOutput("img_paw_legend_ui")
+           # tags$span(class="paw-legend", style="background:#e31a1c;"), "front_left",
+           # tags$span(class="paw-legend", style="background:#fb9a99; margin-left:8px;"), "front_right",
+           # br(),
+           # tags$span(class="paw-legend", style="background:#1f78b4;"), "hind_left",
+           # tags$span(class="paw-legend", style="background:#a6cee3; margin-left:8px;"), "hind_right",
+           # style = "font-size:12px; margin-bottom:8px;"
           ),
           radioButtons("img_edit_mode", NULL,
             choices = c(
@@ -119,21 +122,8 @@ imageAnnotationUI <- function() {
 
           hr(),
 
-          # 7. Zoom
-          h4("7. Zoom"),
-          tags$div(style = "font-size:12px; color:gray; margin-bottom:8px; line-height:1.8;",
-            tags$span(class="kbd", "+"), " / ", tags$span(class="kbd", "="),
-            " zoom in",  tags$br(),
-            tags$span(class="kbd", "\u2212"), " zoom out", tags$br(),
-            tags$span(class="kbd", "0"), " reset"
-          ),
-          actionButton("img_reset_zoom_btn", "\u21BA Reset zoom",
-                       class="btn-sm btn-default", width="100%"),
-
-          hr(),
-
-          # 8. Save & Export
-          h4("8. Save & Export"),
+          # 7. Save & Export
+          h5("7. Save current image to combined temp table"),
           actionButton("img_save_temp_btn", "\U0001F4BE  Save current image to temp",
                        class = "btn-success", width = "100%"),
           br(), br(),
@@ -141,6 +131,7 @@ imageAnnotationUI <- function() {
           hr(),
           uiOutput("img_export_status"),
           br(),
+          h5("8. Download current image or combined"),
           downloadButton("img_export_current", "\u2B07 Current image (.xlsx)",
                          class = "btn-default btn-sm",
                          style = "width:100%; margin-bottom:6px;"),
@@ -153,6 +144,25 @@ imageAnnotationUI <- function() {
       # ---- Main panel ----
       column(9,
         uiOutput("img_title_ui"),
+
+        # Zoom bar
+        div(
+          style = paste("display:flex; align-items:center; gap:12px;",
+                        "background:#f5f5f5; border:1px solid #ddd;",
+                        "border-radius:4px; padding:5px 12px;",
+                        "margin-bottom:6px; font-size:12px; color:#555;"),
+          tags$span("\U0001F50D Zoom:"),
+          tags$span(class="kbd", "+"), tags$span("/ =  in"),
+          tags$span(style="margin:0 4px;", "|"),
+          tags$span(class="kbd", "\u2212"), tags$span("out"),
+          tags$span(style="margin:0 4px;", "|"),
+          tags$span(class="kbd", "0"), tags$span("reset"),
+          tags$span(style="margin:0 4px;", "|"),
+          actionButton("img_reset_zoom_btn", "\u21BA Reset zoom",
+                       class = "btn-xs btn-default",
+                       style = "padding:1px 8px; font-size:11px;")
+        ),
+
         uiOutput("img_plot_ui"),
         div(style = "margin: 6px 0 10px 0;", uiOutput("img_mode_status")),
         hr(),

@@ -196,7 +196,7 @@ ui <- fluidPage(
           # — Upload —
           div(class="section-header", "\U0001F4C2  Data"),
           fileInput("file", NULL, accept=".xlsx",
-                    placeholder="Upload Excel (.xlsx)"),
+                    placeholder="Upload paw data Excel (.xlsx)"),
 
           # — Processing —
           div(class="section-header", "\u2699\ufe0f  Processing"),

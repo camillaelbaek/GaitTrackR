@@ -126,6 +126,9 @@ All bar plots show group mean ± SD with individual mouse points overlaid.
 
 ## Input data format
 
+> 📥 **[Download the template Excel file](templates/GaitTrackR_template.xlsx)**
+> The file contains two sheets: **`paw_coordinates`** with four example mice (wt/ko × vehicle/drug) ready to replace with your data, and **`column_guide`** with a full description of every column, whether it is required, and example values.
+
 Your `.xlsx` file **must** contain these columns:
 
 | Column | Description |

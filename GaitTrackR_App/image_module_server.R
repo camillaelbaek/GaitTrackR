@@ -48,6 +48,42 @@ imageAnnotationServer <- function(input, output, session) {
     if (is.null(nm)) return(NULL)
     ppcm_store()[[nm]]
   })
+  
+# ---- Reactive paw colours (follow front/hind colour selectors) ----
+  col_map <- list(
+    red  = c(dark = "#e31a1c", light = "#fb9a99"),
+    blue = c(dark = "#1f78b4", light = "#a6cee3")
+  )
+
+  paw_cols_r <- reactive({
+    fc <- input$img_front_color %||% "red"
+    hc <- input$img_hind_color  %||% "blue"
+    c(front_left  = unname(col_map[[fc]]["dark"]),
+      front_right = unname(col_map[[fc]]["light"]),
+      hind_left   = unname(col_map[[hc]]["dark"]),
+      hind_right  = unname(col_map[[hc]]["light"]))
+  })
+
+  # ---- Dynamic paw legend ----
+  output$img_paw_legend_ui <- renderUI({
+    cols <- paw_cols_r()
+    tags$div(
+      style = "font-size:12px; margin-bottom:8px;",
+      tags$span(class = "paw-legend",
+                style = paste0("background:", cols["front_left"], ";")),
+      "front_left",
+      tags$span(class = "paw-legend",
+                style = paste0("background:", cols["front_right"], "; margin-left:8px;")),
+      "front_right",
+      br(),
+      tags$span(class = "paw-legend",
+                style = paste0("background:", cols["hind_left"], ";")),
+      "hind_left",
+      tags$span(class = "paw-legend",
+                style = paste0("background:", cols["hind_right"], "; margin-left:8px;")),
+      "hind_right"
+    )
+  })
 
   # ---- Load images ----
   observeEvent(input$img_upload, {
@@ -387,11 +423,11 @@ imageAnnotationServer <- function(input, output, session) {
         sub <- pts[pts$paw == paw, ]
         if (nrow(sub) == 0) next
         points(sub$x, sub$y,
-               col=IMG_PAW_COLS[paw], bg=IMG_PAW_COLS[paw],
+               col=paw_cols_r()[paw], bg=paw_cols_r()[paw],
                pch=21, cex=2.2, lwd=1.5)
         text(sub$x, sub$y - 18,
              labels = paste0(paw_short[paw], sub$dot_id),
-             col=IMG_PAW_COLS[paw], cex=0.75, font=2)
+             col=paw_cols_r()[paw], cex=0.75, font=2)
       }
     }
   })
@@ -415,7 +451,7 @@ imageAnnotationServer <- function(input, output, session) {
       n        <- if (!is.null(current_pts())) nrow(current_pts()) else 0
       zoom_txt <- if (!is.null(zoom_state())) " | \U0001F50D Zoomed" else ""
       n_imgs   <- length(all_images_data())
-      n_ann    <- sum(sapply(all_annotations(), function(x) !is.null(x) && nrow(x) > 0))
+      n_ann <- sum(vapply(all_annotations(), function(x) !is.null(x) && nrow(x) > 0, logical(1)))
       div(style=paste("background:#f5f5f5; border:1px solid #ddd;",
                       "border-radius:4px; padding:6px 12px; font-size:13px;"),
           paste0(mode_label, " | ", n, " points this image",
